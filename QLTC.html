@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <!-- CẤU HÌNH CHUẨN CHO CẢ PC LẪN NATIVE PWA IPHONE -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="QLTC_DN">
+    <meta name="theme-color" content="#0b0c10">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/8983/8983163.png">
+
+    <title>QLTC_DN - Hệ Thống Quản Lý Tài Chính 5 Năm (PC & iPhone)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        studio: {
+                            bg: '#0b0c10',
+                            card: '#13151c',
+                            panel: '#191c26',
+                            border: '#252936',
+                            amber: '#f59e0b',
+                            emerald: '#10b981',
+                            rose: '#f43f5e',
+                            cyan: '#06b6d4'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0b0c10;
+            color: #e2e8f0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding-top: max(0.75rem, env(safe-area-inset-top));
+            padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+            -webkit-tap-highlight-color: transparent;
+        }
+        @media (min-width: 1024px) {
+            body {
+                padding-top: 1.5rem;
+                padding-bottom: 2rem;
+            }
+        }
+        input, select, textarea { font-size: 16px !important; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0b0c10; }
+        ::-webkit-scrollbar-thumb { background: #252936; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #f59e0b; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .bill-check {
+            appearance: none;
+            width: 22px;
+            height: 22px;
+            border: 2px solid #334155;
+            border-radius: 6px;
+            background: #0b0c10;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.15s ease;
+            flex-shrink: 0;
+        }
+        .bill-check:hover { border-color: #10b981; }
+        .bill-check:checked {
+            background-color: #10b981;
+            border-color: #10b981;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.35);
+        }
+        .bill-check:checked::after {
+            content: '✓';
+            position: absolute;
+            color: #0b0c10;
+            font-weight: 900;
+            font-size: 14px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .bottom-nav {
+            padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+        }
+    </style>
+</head>
+<body class="min-h-screen px-3.5 md:px-6 xl:px-8">
+
+    <div class="max-w-[1440px] mx-auto space-y-4 lg:space-y-6">
+
+        <!-- 1. THANH ĐỒNG BỘ GOOGLE SHEETS (CLOUD SYNC BAR) -->
+        <div class="bg-studio-card border border-studio-border rounded-xl px-4 py-2.5 lg:py-3 flex flex-wrap items-center justify-between gap-3 shadow-lg">
+            <div class="flex items-center gap-2.5 min-w-0">
+                <span id="syncDot" class="w-2.5 h-2.5 rounded-full bg-slate-500 flex-shrink-0"></span>
+                <span id="syncStatusText" class="text-xs text-slate-300 font-medium truncate">Chế độ Offline — Nhấn ⚙️ để kết nối Google Sheets</span>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <button onclick="pullFromGoogleSheet()" class="px-3 py-1.5 bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 rounded-lg text-xs text-studio-cyan font-bold transition">
+                    ↓ <span class="hidden sm:inline">Tải từ Sheet</span>
+                </button>
+                <button onclick="pushToGoogleSheet()" class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-lg text-xs text-studio-amber font-bold transition">
+                    ↑ <span class="hidden sm:inline">Lưu lên Sheet</span>
+                </button>
+                <button onclick="configureScriptUrl()" class="px-3 py-1.5 bg-studio-panel hover:bg-slate-800 border border-studio-border rounded-lg text-xs text-slate-200 font-medium transition">
+                    ⚙️ <span class="hidden md:inline">Cài đặt URL Apps Script</span>
+                </button>
+                <button onclick="resetToSheetDefault()" title="Khôi phục dữ liệu gốc" class="hidden sm:inline-block px-2.5 py-1.5 bg-studio-panel hover:bg-rose-950/50 border border-studio-border text-xs text-slate-400 hover:text-rose-400 rounded-lg transition">
+                    ↻
+                </button>
+            </div>
+        </div>
+
+        <!-- 2. HEADER & MỤC TIÊU TÍCH LŨY 360 TRIỆU -->
+        <div class="bg-studio-card border border-studio-border rounded-2xl p-4 lg:p-6 shadow-xl">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 items-center">
+                <div class="lg:col-span-7">
+                    <div class="flex items-center gap-2">
+                        <span class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest bg-amber-500/15 text-studio-amber border border-amber-500/30 rounded">UNIVERSAL SYNC • PC & IPHONE</span>
+                        <span class="hidden sm:inline text-xs text-slate-400">• BẢNG QLTC_DN (2026 – 2029)</span>
+                    </div>
+                    <h1 class="text-xl md:text-2xl xl:text-3xl font-extrabold text-white mt-1.5 tracking-tight">COMMAND CENTER QUẢN LÝ TÀI CHÍNH</h1>
+                    <p class="hidden sm:block text-xs text-slate-400 mt-1">Tích chọn ô vuông = Đã thanh toán (Tự động bôi đen ô tương ứng trên Google Sheets sau 1.2 giây)</p>
+                </div>
+
+                <div class="lg:col-span-5 bg-[#0b0c10] border border-studio-border rounded-xl p-3.5 lg:p-4">
+                    <div class="flex justify-between items-center text-[11px] lg:text-xs text-slate-400 mb-1">
+                        <span class="font-bold uppercase tracking-wider text-studio-amber">MỤC TIÊU TÍCH LŨY (B1 / B3)</span>
+                        <span id="goalPercentText" class="text-white font-bold">0.00%</span>
+                    </div>
+                    <div class="flex items-baseline justify-between">
+                        <div onclick="editAccumulated()" class="cursor-pointer">
+                            <span class="text-[11px] text-slate-500">Hiện tại:</span>
+                            <div class="flex items-center gap-2">
+                                <span id="currentAccumulatedDisplay" class="text-xl lg:text-2xl font-extrabold text-studio-emerald">2.031 đ</span>
+                                <span class="text-[11px] text-studio-amber underline">Sửa</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-[11px] text-slate-500">Đích đến:</span>
+                            <div class="text-base lg:text-lg font-bold text-white">360.000.000 đ</div>
+                        </div>
+                    </div>
+                    <div class="w-full bg-slate-800 h-2 rounded-full mt-2.5 overflow-hidden">
+                        <div id="goalProgressBar" class="bg-gradient-to-r from-amber-500 to-emerald-400 h-full transition-all duration-500" style="width: 1%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. THANH CHỌN NĂM & THÁNG -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-2.5 lg:gap-4 items-center">
+            <div class="lg:col-span-4 grid grid-cols-4 bg-studio-card border border-studio-border rounded-xl p-1.5 gap-1">
+                <button onclick="selectYear('2026')" id="tab-2026" class="py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm font-bold transition">2026</button>
+                <button onclick="selectYear('2027')" id="tab-2027" class="py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm font-bold transition">2027</button>
+                <button onclick="selectYear('2028')" id="tab-2028" class="py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm font-bold transition">2028</button>
+                <button onclick="selectYear('2029')" id="tab-2029" class="py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm font-bold transition">2029</button>
+            </div>
+
+            <div class="lg:col-span-8 flex overflow-x-auto no-scrollbar bg-studio-card border border-studio-border rounded-xl p-1.5 gap-1" id="monthPillsContainer"></div>
+        </div>
+
+        <!-- 4. LƯỚI 4 THẺ KPI (2x2 TRÊN IPHONE, 4 CỘT TRÊN PC) -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5">
+            <div class="bg-studio-card border border-studio-border rounded-xl p-3.5 lg:p-5">
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] lg:text-xs uppercase font-semibold text-slate-400">Tổng Thu</span>
+                    <span id="alphaStatusBadge" onclick="toggleAlphaStatus()" title="Click để đổi trạng thái" class="cursor-pointer text-[9px] lg:text-[11px] px-2 py-0.5 rounded font-bold transition"></span>
+                </div>
+                <h2 id="kpiIncome" class="text-base sm:text-xl xl:text-3xl font-extrabold text-studio-emerald mt-1.5 lg:mt-2">0 đ</h2>
+                <p class="hidden lg:block text-xs text-slate-500 mt-2">Bấm vào nhãn góc phải để đổi Đã nhận / Chưa nhận</p>
+            </div>
+
+            <div class="bg-studio-card border border-studio-border rounded-xl p-3.5 lg:p-5">
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] lg:text-xs uppercase font-semibold text-slate-400">Tổng Chi</span>
+                    <span id="paidCountBadge" class="text-[9px] lg:text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-semibold">0/0</span>
+                </div>
+                <h2 id="kpiExpense" class="text-base sm:text-xl xl:text-3xl font-extrabold text-studio-rose mt-1.5 lg:mt-2">0 đ</h2>
+                <p id="kpiPaidAmountText" class="hidden lg:block text-xs text-slate-500 mt-2">Đã trả (Bôi đen): 0 đ</p>
+            </div>
+
+            <div class="bg-studio-card border border-studio-border rounded-xl p-3.5 lg:p-5">
+                <span class="text-[10px] lg:text-xs uppercase font-semibold text-slate-400">Còn Cần Trả</span>
+                <h2 id="kpiRemainingToPay" class="text-base sm:text-xl xl:text-3xl font-extrabold text-studio-amber mt-1.5 lg:mt-2">0 đ</h2>
+                <p class="hidden lg:block text-xs text-slate-500 mt-2">Tổng các hóa đơn chưa bôi đen</p>
+            </div>
+
+            <div class="bg-studio-card border border-studio-border rounded-xl p-3.5 lg:p-5">
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] lg:text-xs uppercase font-semibold text-slate-400">Dòng Tiền Ròng</span>
+                    <span id="kpiProgressRatio" class="text-[10px] lg:text-xs text-studio-amber font-bold">0%</span>
+                </div>
+                <h2 id="kpiNet" class="text-base sm:text-xl xl:text-3xl font-extrabold text-white mt-1.5 lg:mt-2">0 đ</h2>
+                <p class="hidden lg:block text-xs text-slate-500 mt-2">Chênh lệch Thu - Chi thực tế</p>
+            </div>
+        </div>
+
+        <!-- 5. KHÔNG GIAN LÀM VIỆC CHÍNH (TỰ ĐỘNG CHIA TAB TRÊN IPHONE & BUNG ĐẦY ĐỦ TRÊN PC) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- CỘT TRÁI TRÊN PC (4 CỘT): NGUỒN THU + BIỂU ĐỒ TRÒN -->
+            <div class="lg:col-span-4 space-y-6">
+                
+                <!-- Khối Nguồn Thu -->
+                <div id="section-incomes" class="hidden lg:block bg-studio-card border border-studio-border rounded-2xl overflow-hidden shadow-lg">
+                    <div class="p-4 border-b border-studio-border flex justify-between items-center bg-studio-panel">
+                        <div>
+                            <h3 class="font-bold text-white text-sm">Chi Tiết Nguồn Thu</h3>
+                            <p class="text-[11px] text-slate-400">Chạm vào số tiền để sửa trực tiếp</p>
+                        </div>
+                        <button onclick="addNewItem('incomes')" class="bg-emerald-500/20 hover:bg-emerald-500/30 text-studio-emerald border border-emerald-500/30 px-3 py-1.5 rounded-lg text-xs font-bold transition">
+                            + Thêm Thu
+                        </button>
+                    </div>
+                    <div class="divide-y divide-studio-border" id="incomeListContainer"></div>
+                </div>
+
+                <!-- Khối Biểu Đồ Tròn Cơ Cấu Chi -->
+                <div id="section-chart-cat" class="hidden lg:block bg-studio-card border border-studio-border rounded-2xl p-5 shadow-lg">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-white text-sm">Cơ Cấu Nhóm Chi Tiêu</h3>
+                        <span id="selectedMonthLabelChart" class="text-xs text-studio-amber font-bold"></span>
+                    </div>
+                    <div class="h-60">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- CỘT PHẢI TRÊN PC (8 CỘT): DANH SÁCH KHOẢN CHI + BIỂU ĐỒ CỘT CẢ NĂM -->
+            <div class="lg:col-span-8 space-y-6">
+
+                <!-- Khối Danh Sách Hóa Đơn Chi Tiêu (Mặc định hiện trên cả PC và iPhone) -->
+                <div id="section-expenses" class="block bg-studio-card border border-studio-border rounded-2xl overflow-hidden shadow-lg">
+                    <div class="p-4 border-b border-studio-border flex flex-wrap justify-between items-center gap-2 bg-studio-panel">
+                        <div>
+                            <h3 class="font-bold text-white text-sm">Danh Sách Khoản Chi & Lịch Trả Góp</h3>
+                            <p class="text-[11px] text-slate-400">Tích chọn ô vuông = Đã thanh toán (Tự động bôi đen ô trên Google Sheets)</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="markAllExpenses(true)" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs transition">Tích hết</button>
+                            <button onclick="markAllExpenses(false)" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs transition">Bỏ tích</button>
+                            <button onclick="addNewItem('expenses')" class="bg-rose-500/20 hover:bg-rose-500/30 text-studio-rose border border-rose-500/30 px-3 py-1.5 rounded-lg text-xs font-bold transition">
+                                + Thêm Chi
+                            </button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:gap-px bg-studio-border max-h-[520px] overflow-y-auto" id="expenseListContainer"></div>
+                </div>
+
+                <!-- Khối Biểu Đồ Dòng Tiền Cả Năm -->
+                <div id="section-chart-year" class="hidden lg:block bg-studio-card border border-studio-border rounded-2xl p-5 shadow-lg">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-white text-sm" id="yearlyChartTitle">Biểu Đồ Tương Quan Thu - Chi Các Tháng</h3>
+                        <span class="text-xs text-slate-400">Đơn vị: Triệu VNĐ</span>
+                    </div>
+                    <div class="h-64">
+                        <canvas id="cashflowChart"></canvas>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG ĐÁY DÀNH RIÊNG CHO IPHONE / MOBILE (TỰ ẨN TRÊN PC) -->
+    <nav class="lg:hidden fixed bottom-0 left-0 right-0 bg-[#11131a]/95 backdrop-blur-md border-t border-studio-border bottom-nav z-50">
+        <div class="max-w-md mx-auto grid grid-cols-3 pt-2 px-4">
+            <button onclick="switchMobileView('expenses')" id="nav-expenses" class="flex flex-col items-center py-1 text-studio-amber">
+                <span class="text-lg leading-none">💳</span>
+                <span class="text-[10px] font-bold mt-1">Khoản Chi</span>
+            </button>
+            <button onclick="switchMobileView('incomes')" id="nav-incomes" class="flex flex-col items-center py-1 text-slate-400">
+                <span class="text-lg leading-none">💰</span>
+                <span class="text-[10px] font-bold mt-1">Nguồn Thu</span>
+            </button>
+            <button onclick="switchMobileView('charts')" id="nav-charts" class="flex flex-col items-center py-1 text-slate-400">
+                <span class="text-lg leading-none">📊</span>
+                <span class="text-[10px] font-bold mt-1">Biểu Đồ</span>
+            </button>
+        </div>
+    </nav>
+
+    <script>
+        // 1. DỮ LIỆU GỐC TRÍCH XUẤT TỪ FILE SHEET BẢNG QLTC_DN
+        const INITIAL_SHEET_DATA = {
+            accumulated: 2031,
+            goal: 360000000,
+            years: {
+                "2026": {
+                    months: ["Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"],
+                    data: {
+                        "Tháng 7": {
+                            alphaStatus: "ĐÃ NHẬN FULL",
+                            incomes: [
+                                { name: "FREELACE ALPHA X (THƯỞNG)", due: "Thưởng", amount: 0 },
+                                { name: "FREELACE ALPHA X (NGÀY 10) 13000000", due: "Ngày 10", amount: 4482916 },
+                                { name: "PART-TIME PEARL GROUP (NGÀY 5) 8000000", due: "Ngày 5", amount: 14000000 },
+                                { name: "PEARL GROUP (THƯỞNG)", due: "Thưởng", amount: 0 },
+                                { name: "KÊNH CÁ NHÂN (X)", due: "Tự do", amount: 0 },
+                                { name: "KHÁC (CỌC NHÀ/GIA ĐÌNH/THU HỒI NỢ)", due: "Khác", amount: 2000000 }
+                            ],
+                            expenses: []
+                        },
+                        "Tháng 8": {
+                            alphaStatus: "ĐÃ NHẬN FULL",
+                            incomes: [
+                                { name: "FREELACE ALPHA X (THƯỞNG)", due: "Thưởng", amount: 500000 },
+                                { name: "FREELACE ALPHA X (NGÀY 10) 13000000", due: "Ngày 10", amount: 3104175 },
+                                { name: "PART-TIME PEARL GROUP (NGÀY 5) 8000000", due: "Ngày 5", amount: 13914815 },
+                                { name: "PEARL GROUP (THƯỞNG)", due: "Thưởng", amount: 500000 },
+                                { name: "KÊNH CÁ NHÂN (X)", due: "Tự do", amount: 0 },
+                                { name: "KHÁC (CỌC NHÀ/GIA ĐÌNH/THU HỒI NỢ)", due: "Khác", amount: 2768667 }
+                            ],
+                            expenses: []
+                        },
+                        "Tháng 9": {
+                            alphaStatus: "ĐÃ NHẬN FULL",
+                            incomes: [
+                                { name: "FREELACE ALPHA X (THƯỞNG)", due: "Thưởng", amount: 600000 },
+                                { name: "FREELACE ALPHA X (NGÀY 10) 13000000", due: "Ngày 10", amount: 0 },
+                                { name: "PART-TIME PEARL GROUP (NGÀY 5) 8000000", due: "Ngày 5", amount: 13346154 },
+                                { name: "PEARL GROUP (THƯỞNG)", due: "Thưởng", amount: 0 },
+                                { name: "KÊNH CÁ NHÂN (X)", due: "Tự do", amount: 0 },
+                                { name: "KHÁC (CỌC NHÀ/GIA ĐÌNH/THU HỒI NỢ)", due: "Khác", amount: 750000 }
+                            ],
+                            expenses: []
+                        },
+                        "Tháng 10": {
+                            alphaStatus: "CHƯA NHẬN",
+                            incomes: [
+                                { name: "FREELACE ALPHA X (THƯỞNG)", due: "Thưởng", amount: 2600000 },
+                                { name: "FREELACE ALPHA X (NGÀY 10) 13000000", due: "Ngày 10", amount: 7321000 },
+                                { name: "PART-TIME PEARL GROUP (NGÀY 5) 8000000", due: "Ngày 5", amount: 13812308 },
+                                { name: "PEARL GROUP (THƯỞNG)", due: "Thưởng", amount: 0 },
+                                { name: "KÊNH CÁ NHÂN (X)", due: "Tự do", amount: 0 },
+                                { name: "KHÁC (CỌC NHÀ/GIA ĐÌNH/THU HỒI NỢ)", due: "Khác", amount: 490000 }
+                            ],
+                            expenses: [
+                                { name: "Shopee Ngày 21", cat: "Shopee / SPayLater", due: "Ngày 21", amount: 399391, paid: false },
+                                { name: "Shopee Ngày 16", cat: "Shopee / SPayLater", due: "Ngày 16", amount: 398758, paid: false },
+                                { name: "Shopee Ngày 06", cat: "Shopee / SPayLater", due: "Ngày 06", amount: 1197903, paid: true },
+                                { name: "Shopee Ngày 25", cat: "Shopee / SPayLater", due: "Ngày 25", amount: 399301, paid: false },
+                                { name: "Shopee Ngày 23", cat: "Shopee / SPayLater", due: "Ngày 23", amount: 519092, paid: false },
+                                { name: "SPAYLATER Ngày 10", cat: "Shopee / SPayLater", due: "Ngày 10", amount: 1921885, paid: true },
+                                { name: "Tiền nhà Ngày 5", cat: "Nhà ở & Cố định", due: "Ngày 05", amount: 2000000, paid: true },
+                                { name: "Quỹ chung (Momo) Ngày 5", cat: "Nhà ở & Cố định", due: "Ngày 05", amount: 1500000, paid: true },
+                                { name: "HD (PC) Ngày 17", cat: "Vay / Trả góp", due: "Ngày 17", amount: 1348182, paid: false },
+                                { name: "Shopee NGÀY 14", cat: "Shopee / SPayLater", due: "Ngày 14", amount: 1154922, paid: true },
+                                { name: "Sinh hoạt", cat: "Sinh hoạt", due: "Hàng tháng", amount: 2000000, paid: false },
+                                { name: "Tiền nhà MTH Ngày 10", cat: "Nhà ở & Cố định", due: "Ngày 10", amount: 1500000, paid: true },
+                                { name: "Momo trả sau", cat: "Vay / Trả góp", due: "Hàng tháng", amount: 500000, paid: false },
+                                { name: "Tiền gửi má 10", cat: "Gia đình", due: "Ngày 10", amount: 1782000, paid: true },
+                                { name: "Du lịch", cat: "Sinh hoạt", due: "Phát sinh", amount: 2000000, paid: false },
+                                { name: "Momo vay 09", cat: "Vay / Trả góp", due: "Ngày 09", amount: 3841000, paid: true },
+                                { name: "Shopee Ngày 10", cat: "Shopee / SPayLater", due: "Ngày 10", amount: 1433123, paid: true }
+                            ]
+                        },
+                        "Tháng 11": {
+                            alphaStatus: "CHƯA NHẬN",
+                            incomes: [
+                                { name: "FREELACE ALPHA X (NGÀY 10) 13000000", due: "Ngày 10", amount: 3485000 },
+                                { name: "PART-TIME PEARL GROUP (NGÀY 5) 8000000", due: "Ngày 5", amount: 12962963 }
+                            ],
+                            expenses: [
+                                { name: "Shopee Ngày 21", cat: "Shopee / SPayLater", due: "Ngày 21", amount: 399391, paid: false },
+                                { name: "Shopee Ngày 16", cat: "Shopee / SPayLater", due: "Ngày 16", amount: 398758, paid: false },
+                                { name: "Shopee Ngày 06", cat: "Shopee / SPayLater", due: "Ngày 06", amount: 1197903, paid: false },
+                                { name: "Shopee Ngày 25", cat: "Shopee / SPayLater", due: "Ngày 25", amount: 399301, paid: false },
+                                { name: "Shopee Ngày 23", cat: "Shopee / SPayLater", due: "Ngày 23", amount: 519092, paid: false },
+                                { name: "SPAYLATER Ngày 10", cat: "Shopee / SPayLater", due: "Ngày 10", amount: 1029612, paid: false },
+                                { name: "Tiền nhà Ngày 5", cat: "Nhà ở & Cố định", due: "Ngày 05", amount: 2000000, paid: false },
+                                { name: "Quỹ chung (Momo) Ngày 5", cat: "Nhà ở & Cố định", due: "Ngày 05", amount: 1500000, paid: false },
+                                { name: "HD (PC) Ngày 17", cat: "Vay / Trả góp", due: "Ngày 17", amount: 1348182, paid: false },
+                                { name: "Shopee NGÀY 14", cat: "Shopee / SPayLater", due: "Ngày 14", amount: 1154922, paid: false },
+                                { name: "Sinh hoạt", cat: "Sinh hoạt", due: "Hàng tháng", amount: 3000000, paid: false },
+                                { name: "Tiền nhà MTH Ngày 10", cat: "Nhà ở & Cố định", due: "Ngày 10", amount: 3500000, paid: false },
+                                { name: "Momo trả sau", cat: "Vay / Trả góp", due: "Hàng tháng", amount: 74000, paid: false },
+                                { name: "Tiền gửi má 10", cat: "Gia đình", due: "Ngày 10", amount: 1500000, paid: false },
+                                { name: "Momo vay 09", cat: "Vay / Trả góp", due: "Ngày 09", amount: 2151000, paid: false },
+                                { name: "Shopee Ngày 10", cat: "Shopee / SPayLater", due: "Ngày 10", amount: 1433123, paid: false }
+                            ]
+                        },
+                        "Tháng 12": {
+                            alphaStatus: "CHƯA NHẬN",
+                            incomes: [
+                                { name: "PART-TIME PEARL GROUP (NGÀY 5) 8000000", due: "Ngày 5", amount: 14000000 }
+                            ],
+                            expenses: [
+                                { name: "Shopee Ngày 21", cat: "Shopee / SPayLater", due: "Ngày 21", amount: 399391, paid: false },
+                                { name: "Shopee Ngày 16", cat: "Shopee / SPayLater", due: "Ngày 16", amount: 398758, paid: false },
+                                { name: "Shopee Ngày 06", cat: "Shopee / SPayLater", due: "Ngày 06", amount: 1197903, paid: false },
+                                { name: "Shopee Ngày 25", cat: "Shopee / SPayLater", due: "Ngày 25", amount: 399301, paid: false },
+                                { name: "Shopee Ngày 23", cat: "Shopee / SPayLater", due: "Ngày 23", amount: 521168, paid: false },
+                                { name: "SPAYLATER Ngày 10", cat: "Shopee / SPayLater", due: "Ngày 10", amount: 523805, paid: false },
+                                { name: "Tiền nhà Ngày 5", cat: "Nhà ở & Cố định", due: "Ngày 05", amount: 2000000, paid: false },
+                                { name: "Quỹ chung (Momo) Ngày 5", cat: "Nhà ở & Cố định", due: "Ngày 05", amount: 1500000, paid: false },
+                                { name: "HD (PC) Ngày 17", cat: "Vay / Trả góp", due: "Ngày 17", amount: 1348182, paid: false },
+                                { name: "Shopee NGÀY 14", cat: "Shopee / SPayLater", due: "Ngày 14", amount: 1154922, paid: false },
+                                { name: "Sinh hoạt", cat: "Sinh hoạt", due: "Hàng tháng", amount: 3000000, paid: false },
+                                { name: "Tiền nhà MTH Ngày 10", cat: "Nhà ở & Cố định", due: "Ngày 10", amount: 3500000, paid: false },
+                                { name: "Momo trả sau", cat: "Vay / Trả góp", due: "Hàng tháng", amount: 165497, paid: false },
+                                { name: "Tiền gửi má 10", cat: "Gia đình", due: "Ngày 10", amount: 1500000, paid: false },
+                                { name: "Momo vay 09", cat: "Vay / Trả góp", due: "Ngày 09", amount: 2151158, paid: false },
+                                { name: "Shopee Ngày 10", cat: "Shopee / SPayLater", due: "Ngày 10", amount: 1433123, paid: false }
+                            ]
+                        }
+                    }
+                },
+                "2027": { months: ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"], data: {} },
+                "2028": { months: ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"], data: {} },
+                "2029": { months: ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"], data: {} }
+            }
+        };
+
+        function buildFutureYears(db) {
+            const months12 = ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"];
+            months12.forEach((m, idx) => {
+                const ex = [
+                    { name: "Tiền ăn tối", cat: "Sinh hoạt", due: "Hàng tháng", amount: 1500000, paid: false },
+                    { name: "Tiết kiệm", cat: "Tiết kiệm", due: "Hàng tháng", amount: 2000000, paid: false },
+                    { name: "Nợ chú bảy", cat: "Vay / Trả góp", due: "Hàng tháng", amount: 1000000, paid: false },
+                    { name: "Sinh hoạt", cat: "Sinh hoạt", due: "Hàng tháng", amount: 3000000, paid: false },
+                    { name: "Tiền gửi má", cat: "Gia đình", due: "Ngày 10", amount: 1500000, paid: false }
+                ];
+                if (idx <= 7) {
+                    ex.unshift({ name: "Tiền nhà MTH Ngày 10", cat: "Nhà ở & Cố định", due: "Ngày 10", amount: 3500000, paid: false });
+                    ex.push({ name: "Vay Shopee", cat: "Shopee / SPayLater", due: "Ngày 14", amount: 1154922, paid: false });
+                    ex.push({ name: "Tiền Nhà", cat: "Nhà ở & Cố định", due: "Ngày 05", amount: 2000000, paid: false });
+                }
+                if (idx === 0) {
+                    ex.push({ name: "Shopee (Đơn 1)", cat: "Shopee / SPayLater", due: "Hàng tháng", amount: 399301, paid: false });
+                    ex.push({ name: "Shopee (Đơn 2)", cat: "Shopee / SPayLater", due: "Hàng tháng", amount: 1212134, paid: false });
+                    ex.push({ name: "SPAYLATER", cat: "Shopee / SPayLater", due: "Ngày 10", amount: 66780, paid: false });
+                    ex.push({ name: "Shopee (Đơn 3)", cat: "Shopee / SPayLater", due: "Ngày 10", amount: 1433123, paid: false });
+                    ex.push({ name: "Shopee (Đơn 4)", cat: "Shopee / SPayLater", due: "Ngày 16", amount: 398758, paid: false });
+                } else if (idx === 1) {
+                    ex.push({ name: "Shopee (Đơn 1)", cat: "Shopee / SPayLater", due: "Hàng tháng", amount: 402460, paid: false });
+                    ex.push({ name: "Shopee (Đơn 3)", cat: "Shopee / SPayLater", due: "Ngày 10", amount: 1433123, paid: false });
+                    ex.push({ name: "Shopee (Đơn 4)", cat: "Shopee / SPayLater", due: "Ngày 16", amount: 398758, paid: false });
+                } else if (idx === 2) {
+                    ex.push({ name: "Shopee (Đơn 3)", cat: "Shopee / SPayLater", due: "Ngày 10", amount: 1433123, paid: false });
+                    ex.push({ name: "Shopee (Đơn 4)", cat: "Shopee / SPayLater", due: "Ngày 25", amount: 399301, paid: false });
+                }
+                db.years["2027"].data[m] = {
+                    alphaStatus: "CHƯA NHẬN",
+                    incomes: [{ name: "PART-TIME PEARL GROUP (NGÀY 5) 8000000", due: "Ngày 5", amount: 14000000 }],
+                    expenses: ex
+                };
+            });
+
+            months12.forEach(m => {
+                db.years["2028"].data[m] = {
+                    alphaStatus: "KẾ HOẠCH",
+                    incomes: [{ name: "THU NHẬP DỰ KIẾN", due: "Hàng tháng", amount: 14000000 }],
+                    expenses: [
+                        { name: "Tiết kiệm", cat: "Tiết kiệm", due: "Hàng tháng", amount: 4000000, paid: false },
+                        { name: "Sinh hoạt", cat: "Sinh hoạt", due: "Hàng tháng", amount: 3000000, paid: false },
+                        { name: "Nợ chú bảy", cat: "Vay / Trả góp", due: "Hàng tháng", amount: 1000000, paid: false },
+                        { name: "Tiền gửi má", cat: "Gia đình", due: "Ngày 10", amount: 1500000, paid: false }
+                    ]
+                };
+            });
+
+            months12.forEach((m, idx) => {
+                const ex29 = [
+                    { name: "Tiết kiệm", cat: "Tiết kiệm", due: "Hàng tháng", amount: 8000000, paid: false },
+                    { name: "Sinh hoạt", cat: "Sinh hoạt", due: "Hàng tháng", amount: 4000000, paid: false }
+                ];
+                if (idx <= 7) ex29.push({ name: "Tiền gửi má", cat: "Gia đình", due: "Ngày 10", amount: 1500000, paid: false });
+                db.years["2029"].data[m] = {
+                    alphaStatus: "KẾ HOẠCH",
+                    incomes: [{ name: "THU NHẬP DỰ KIẾN", due: "Hàng tháng", amount: 16000000 }],
+                    expenses: ex29
+                };
+            });
+        }
+
+        buildFutureYears(INITIAL_SHEET_DATA);
+
+        let appState = JSON.parse(localStorage.getItem('qltc_dn_state_v1')) || JSON.parse(JSON.stringify(INITIAL_SHEET_DATA));
+        let GAS_WEB_APP_URL = localStorage.getItem('qltc_gas_url') || '';
+        let currentYear = "2026";
+        let currentMonth = "Tháng 10";
+        let activeMobileTab = "expenses";
+        let syncTimeout = null;
+        let cashflowChartInstance = null;
+        let categoryChartInstance = null;
+
+        function formatVND(num) {
+            return Number(num || 0).toLocaleString('vi-VN') + ' đ';
+        }
+
+        // CHUYỂN ĐỔI TAB TRÊN MOBILE (TRÊN PC LUÔN HIỂN THỊ TẤT CẢ NHỜ CLASS lg:block)
+        function switchMobileView(tab) {
+            activeMobileTab = tab;
+            const secExp = document.getElementById('section-expenses');
+            const secInc = document.getElementById('section-incomes');
+            const secChartCat = document.getElementById('section-chart-cat');
+            const secChartYear = document.getElementById('section-chart-year');
+
+            secExp.className = (tab === 'expenses' ? 'block' : 'hidden') + ' lg:block bg-studio-card border border-studio-border rounded-2xl overflow-hidden shadow-lg';
+            secInc.className = (tab === 'incomes' ? 'block' : 'hidden') + ' lg:block bg-studio-card border border-studio-border rounded-2xl overflow-hidden shadow-lg';
+            secChartCat.className = (tab === 'charts' ? 'block' : 'hidden') + ' lg:block bg-studio-card border border-studio-border rounded-2xl p-5 shadow-lg';
+            secChartYear.className = (tab === 'charts' ? 'block' : 'hidden') + ' lg:block bg-studio-card border border-studio-border rounded-2xl p-5 shadow-lg';
+
+            ['expenses', 'incomes', 'charts'].forEach(t => {
+                document.getElementById('nav-' + t).className = (t === tab)
+                    ? 'flex flex-col items-center py-1 text-studio-amber'
+                    : 'flex flex-col items-center py-1 text-slate-400';
+            });
+
+            renderCharts();
+        }
+
+        // ĐỒNG BỘ 2 CHIỀU GOOGLE APPS SCRIPT
+        function setSyncUI(state, message) {
+            const dot = document.getElementById('syncDot');
+            const txt = document.getElementById('syncStatusText');
+            if (!dot || !txt) return;
+            txt.innerText = message;
+            if (state === 'syncing') dot.className = 'w-2.5 h-2.5 rounded-full bg-studio-amber animate-ping flex-shrink-0';
+            else if (state === 'success') dot.className = 'w-2.5 h-2.5 rounded-full bg-studio-emerald flex-shrink-0';
+            else if (state === 'error') dot.className = 'w-2.5 h-2.5 rounded-full bg-studio-rose flex-shrink-0';
+            else dot.className = 'w-2.5 h-2.5 rounded-full bg-slate-500 flex-shrink-0';
+        }
+
+        function configureScriptUrl() {
+            const input = prompt('Dán đường link Web App URL từ Google Apps Script (có đuôi /exec):', GAS_WEB_APP_URL);
+            if (input !== null) {
+                GAS_WEB_APP_URL = input.trim();
+                localStorage.setItem('qltc_gas_url', GAS_WEB_APP_URL);
+                if (GAS_WEB_APP_URL) {
+                    setSyncUI('syncing', 'Đã lưu URL. Đang đồng bộ với BẢNG QLTC_DN...');
+                    pullFromGoogleSheet();
+                } else {
+                    setSyncUI('idle', 'Chế độ Offline (LocalStorage)');
+                }
+            }
+        }
+
+        function saveState() {
+            localStorage.setItem('qltc_dn_state_v1', JSON.stringify(appState));
+            if (!GAS_WEB_APP_URL) return;
+            setSyncUI('syncing', 'Đang chờ lưu lên Google Sheets...');
+            clearTimeout(syncTimeout);
+            syncTimeout = setTimeout(() => { pushToGoogleSheet(); }, 1200);
+        }
+
+        async function pushToGoogleSheet() {
+            if (!GAS_WEB_APP_URL) {
+                configureScriptUrl();
+                return;
+            }
+            try {
+                setSyncUI('syncing', 'Đang cập nhật số liệu & ô bôi đen lên Sheet...');
+                const res = await fetch(GAS_WEB_APP_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ state: appState })
+                });
+                const json = await res.json();
+                if (json.status === 'success') {
+                    setSyncUI('success', `Đã đồng bộ 2 chiều lúc ${new Date().toLocaleTimeString('vi-VN')}`);
+                } else {
+                    setSyncUI('error', 'Lỗi từ Sheet: ' + json.message);
+                }
+            } catch (err) {
+                setSyncUI('error', 'Không thể kết nối Apps Script (Kiểm tra link /exec)');
+            }
+        }
+
+        async function pullFromGoogleSheet() {
+            if (!GAS_WEB_APP_URL) {
+                configureScriptUrl();
+                return;
+            }
+            try {
+                setSyncUI('syncing', 'Đang tải dữ liệu & các ô bôi đen từ Sheet...');
+                const res = await fetch(GAS_WEB_APP_URL + '?action=read&t=' + Date.now());
+                const json = await res.json();
+                if (json.status === 'success') {
+                    if (json.data) {
+                        appState = json.data;
+                        localStorage.setItem('qltc_dn_state_v1', JSON.stringify(appState));
+                        renderAll();
+                        setSyncUI('success', `Đã tải từ Sheet lúc ${new Date().toLocaleTimeString('vi-VN')}`);
+                    } else {
+                        await pushToGoogleSheet();
+                    }
+                } else {
+                    setSyncUI('error', 'Lỗi đọc Sheet');
+                }
+            } catch (err) {
+                setSyncUI('error', 'Mất kết nối khi tải từ Google Sheets');
+            }
+        }
+
+        // TƯƠNG TÁC NGƯỜI DÙNG
+        function selectYear(yr) {
+            currentYear = yr;
+            const availableMonths = appState.years[yr].months;
+            if (!availableMonths.includes(currentMonth)) {
+                currentMonth = yr === "2026" ? "Tháng 10" : availableMonths[0];
+            }
+            renderAll();
+        }
+
+        function selectMonth(m) {
+            currentMonth = m;
+            renderAll();
+        }
+
+        function toggleAlphaStatus() {
+            const mData = appState.years[currentYear].data[currentMonth];
+            mData.alphaStatus = mData.alphaStatus === "ĐÃ NHẬN FULL" ? "CHƯA NHẬN" : "ĐÃ NHẬN FULL";
+            saveState();
+            renderAll();
+        }
+
+        function toggleExpensePaid(idx) {
+            const mData = appState.years[currentYear].data[currentMonth];
+            mData.expenses[idx].paid = !mData.expenses[idx].paid;
+            saveState();
+            renderAll();
+        }
+
+        function markAllExpenses(status) {
+            const mData = appState.years[currentYear].data[currentMonth];
+            mData.expenses.forEach(e => e.paid = status);
+            saveState();
+            renderAll();
+        }
+
+        function editItemAmount(type, idx) {
+            const mData = appState.years[currentYear].data[currentMonth];
+            const item = mData[type][idx];
+            const input = prompt(`Nhập số tiền mới cho "${item.name}" (VNĐ):`, item.amount);
+            if (input !== null) {
+                const parsed = parseInt(input.replace(/\D/g, ''), 10);
+                if (!isNaN(parsed)) {
+                    item.amount = parsed;
+                    saveState();
+                    renderAll();
+                }
+            }
+        }
+
+        function deleteItem(type, idx) {
+            if (!confirm('Xóa mục này?')) return;
+            const mData = appState.years[currentYear].data[currentMonth];
+            mData[type].splice(idx, 1);
+            saveState();
+            renderAll();
+        }
+
+        function addNewItem(type) {
+            const mData = appState.years[currentYear].data[currentMonth];
+            const name = prompt(type === 'incomes' ? "Tên nguồn thu mới:" : "Tên khoản chi mới:");
+            if (!name) return;
+            const amtStr = prompt("Số tiền (VNĐ):", "1000000");
+            const amount = parseInt((amtStr || "0").replace(/\D/g, ''), 10) || 0;
+            if (type === 'incomes') {
+                mData.incomes.push({ name, due: "Bổ sung", amount });
+            } else {
+                const due = prompt("Ngày thanh toán (VD: Ngày 10, Hàng tháng):", "Hàng tháng") || "Hàng tháng";
+                mData.expenses.push({ name, cat: "Khác", due, amount, paid: false });
+            }
+            saveState();
+            renderAll();
+        }
+
+        function editAccumulated() {
+            const input = prompt("Nhập số tiền tích lũy hiện tại (Ô B1 trên Sheet):", appState.accumulated);
+            if (input !== null) {
+                const val = parseInt(input.replace(/\D/g, ''), 10);
+                if (!isNaN(val)) {
+                    appState.accumulated = val;
+                    saveState();
+                    renderAll();
+                }
+            }
+        }
+
+        function resetToSheetDefault() {
+            if (confirm("Khôi phục toàn bộ dữ liệu gốc từ file BẢNG QLTC_DN?")) {
+                appState = JSON.parse(JSON.stringify(INITIAL_SHEET_DATA));
+                currentYear = "2026";
+                currentMonth = "Tháng 10";
+                saveState();
+                renderAll();
+            }
+        }
+
+        // HIỂN THỊ DỮ LIỆU & BIỂU ĐỒ
+        function renderAll() {
+            const pctGoal = Math.min(100, (appState.accumulated / appState.goal) * 100);
+            document.getElementById('currentAccumulatedDisplay').innerText = formatVND(appState.accumulated);
+            document.getElementById('goalPercentText').innerText = pctGoal.toFixed(2) + '%';
+            document.getElementById('goalProgressBar').style.width = Math.max(1, pctGoal) + '%';
+
+            ["2026", "2027", "2028", "2029"].forEach(yr => {
+                const btn = document.getElementById('tab-' + yr);
+                btn.className = yr === currentYear
+                    ? "py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm font-bold transition bg-studio-amber text-black shadow"
+                    : "py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm font-bold transition text-slate-400 hover:text-white";
+            });
+
+            const months = appState.years[currentYear].months;
+            document.getElementById('monthPillsContainer').innerHTML = months.map(m => `
+                <button onclick="selectMonth('${m}')" class="flex-1 min-w-[76px] py-1.5 lg:py-2 px-2.5 rounded-lg text-xs font-bold whitespace-nowrap transition ${
+                    m === currentMonth ? 'bg-slate-800 text-studio-amber border border-amber-500/40' : 'text-slate-400 hover:text-white'
+                }">${m}</button>
+            `).join('');
+
+            const mData = appState.years[currentYear].data[currentMonth];
+            const totalInc = mData.incomes.reduce((s, i) => s + i.amount, 0);
+            const totalExp = mData.expenses.reduce((s, e) => s + e.amount, 0);
+            const net = totalInc - totalExp;
+            const ratio = totalExp > 0 ? ((totalInc / totalExp) * 100).toFixed(1) : 100;
+
+            const paidItems = mData.expenses.filter(e => e.paid);
+            const paidAmount = paidItems.reduce((s, e) => s + e.amount, 0);
+            const unpaidAmount = mData.expenses.filter(e => !e.paid).reduce((s, e) => s + e.amount, 0);
+
+            document.getElementById('kpiIncome').innerText = formatVND(totalInc);
+            document.getElementById('kpiExpense').innerText = formatVND(totalExp);
+            document.getElementById('kpiRemainingToPay').innerText = formatVND(unpaidAmount);
+            document.getElementById('kpiPaidAmountText').innerText = `Đã trả (Bôi đen): ${formatVND(paidAmount)}`;
+
+            const netEl = document.getElementById('kpiNet');
+            netEl.innerText = (net >= 0 ? '+' : '') + formatVND(net);
+            netEl.className = `text-base sm:text-xl xl:text-3xl font-extrabold mt-1.5 lg:mt-2 ${net >= 0 ? 'text-studio-emerald' : 'text-studio-rose'}`;
+            document.getElementById('kpiProgressRatio').innerText = ratio + '%';
+
+            const badge = document.getElementById('alphaStatusBadge');
+            badge.innerText = mData.alphaStatus;
+            badge.className = mData.alphaStatus === "ĐÃ NHẬN FULL"
+                ? "cursor-pointer text-[9px] lg:text-[11px] px-2 py-0.5 rounded font-bold bg-emerald-500/20 text-studio-emerald border border-emerald-500/30"
+                : "cursor-pointer text-[9px] lg:text-[11px] px-2 py-0.5 rounded font-bold bg-rose-500/20 text-studio-rose border border-rose-500/30";
+
+            document.getElementById('paidCountBadge').innerText = `${paidItems.length}/${mData.expenses.length} đã trả`;
+            document.getElementById('selectedMonthLabelChart').innerText = `${currentMonth} / ${currentYear}`;
+
+            // Render Nguồn thu
+            document.getElementById('incomeListContainer').innerHTML = mData.incomes.map((inc, idx) => `
+                <div class="p-3.5 hover:bg-white/[0.02] flex items-center justify-between transition">
+                    <div class="pr-2 min-w-0">
+                        <div class="text-xs font-semibold text-slate-200 truncate">${inc.name}</div>
+                        <span class="text-[11px] text-slate-500">Kỳ nhận: ${inc.due}</span>
+                    </div>
+                    <div class="flex items-center gap-2.5 flex-shrink-0">
+                        <span onclick="editItemAmount('incomes', ${idx})" class="text-xs lg:text-sm font-bold text-studio-emerald cursor-pointer hover:underline">${formatVND(inc.amount)}</span>
+                        <button onclick="deleteItem('incomes', ${idx})" class="text-slate-600 hover:text-rose-400 text-xs px-1">✕</button>
+                    </div>
+                </div>
+            `).join('');
+
+            // Render Khoản chi
+            const expContainer = document.getElementById('expenseListContainer');
+            if (mData.expenses.length === 0) {
+                expContainer.innerHTML = `<div class="col-span-2 p-8 bg-studio-card text-center text-slate-500 text-xs lg:text-sm">Chưa có danh sách khoản chi cho tháng này. Nhấn "+ Thêm Chi" để bổ sung.</div>`;
+            } else {
+                expContainer.innerHTML = mData.expenses.map((exp, idx) => `
+                    <div class="p-3.5 bg-studio-card hover:bg-[#181b24] flex items-center justify-between transition ${exp.paid ? 'bg-[#0d0f14] opacity-55' : ''}">
+                        <div class="flex items-center gap-3 min-w-0 pr-2">
+                            <input type="checkbox" class="bill-check" ${exp.paid ? 'checked' : ''} onchange="toggleExpensePaid(${idx})">
+                            <div class="truncate">
+                                <div class="text-xs lg:text-sm font-semibold truncate ${exp.paid ? 'line-through text-slate-500' : 'text-slate-100'}">${exp.name}</div>
+                                <div class="flex items-center gap-2 mt-0.5">
+                                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-studio-amber font-semibold">${exp.due}</span>
+                                    <span class="text-[10px] lg:text-[11px] text-slate-500 truncate">${exp.cat}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2.5 flex-shrink-0">
+                            <span onclick="editItemAmount('expenses', ${idx})" class="text-xs lg:text-sm font-bold ${exp.paid ? 'text-slate-400' : 'text-studio-rose'} cursor-pointer hover:underline">${formatVND(exp.amount)}</span>
+                            <button onclick="deleteItem('expenses', ${idx})" class="text-slate-600 hover:text-rose-400 text-xs px-1">✕</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            renderCharts();
+        }
+
+        function renderCharts() {
+            const yearObj = appState.years[currentYear];
+            const labels = yearObj.months.map(m => window.innerWidth < 640 ? m.replace('Tháng ', 'T') : m);
+            const incomeSeries = yearObj.months.map(m => yearObj.data[m].incomes.reduce((s, i) => s + i.amount, 0));
+            const expenseSeries = yearObj.months.map(m => yearObj.data[m].expenses.reduce((s, e) => s + e.amount, 0));
+
+            document.getElementById('yearlyChartTitle').innerText = `Biểu Đồ Tương Quan Thu - Chi Năm ${currentYear}`;
+
+            const ctx1 = document.getElementById('cashflowChart').getContext('2d');
+            if (cashflowChartInstance) cashflowChartInstance.destroy();
+            cashflowChartInstance = new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Tổng Thu', data: incomeSeries, backgroundColor: '#10b981', borderRadius: 5 },
+                        { label: 'Tổng Chi', data: expenseSeries, backgroundColor: '#f43f5e', borderRadius: 5 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { grid: { color: '#252936' }, ticks: { color: '#94a3b8', callback: v => (v / 1000000) + 'M' } },
+                        x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                    },
+                    plugins: { legend: { labels: { color: '#e2e8f0' } } }
+                }
+            });
+
+            const mData = yearObj.data[currentMonth];
+            const catMap = {};
+            mData.expenses.forEach(e => { catMap[e.cat] = (catMap[e.cat] || 0) + e.amount; });
+
+            const ctx2 = document.getElementById('categoryChart').getContext('2d');
+            if (categoryChartInstance) categoryChartInstance.destroy();
+            categoryChartInstance = new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(catMap).length ? Object.keys(catMap) : ['Chưa có khoản chi'],
+                    datasets: [{
+                        data: Object.values(catMap).length ? Object.values(catMap) : [1],
+                        backgroundColor: ['#f43f5e', '#f59e0b', '#06b6d4', '#10b981', '#8b5cf6', '#64748b'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '66%',
+                    plugins: { legend: { position: 'bottom', labels: { color: '#cbd5e1', boxWidth: 10, font: { size: 11 } } } }
+                }
+            });
+        }
+
+        // TỰ ĐỘNG ĐỒNG BỘ KHI MỞ MÀN HÌNH IPHONE HOẶC CHUYỂN TAB TRÊN PC
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && GAS_WEB_APP_URL) pullFromGoogleSheet();
+        });
+        window.addEventListener('online', () => {
+            if (GAS_WEB_APP_URL) pullFromGoogleSheet();
+        });
+
+        renderAll();
+        if (GAS_WEB_APP_URL) pullFromGoogleSheet();
+    </script>
+</body>
+</html>
